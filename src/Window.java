@@ -11,7 +11,14 @@ public class Window extends JFrame {
     // Top level containers
     private JPanel m_configPanel;
     private JPanel m_drawingPanel;
+
+    // Sub-components
     private ArrayList<ControlPoint> m_controlPoints = new ArrayList<>();
+    private Robot m_robot;
+    private JButton m_start;
+    private long m_animationTime = 0;
+    private boolean m_animationRunning = false;
+    private final double m_period = 5000; // 5 Seconds per animation
     public static final double[][] pascalsTriangle = {
             {1},
             {1, 1},
@@ -27,12 +34,12 @@ public class Window extends JFrame {
         // Config panel properties
         m_configPanel = new JPanel();
         m_configPanel.setBorder(BorderFactory.createEtchedBorder());
+        m_configPanel.setLayout(new FlowLayout());
 
         // Drawing panel properties
         m_drawingPanel = new JPanel();
         m_drawingPanel.setLayout(null); // No layout
         m_drawingPanel.setBorder(BorderFactory.createEtchedBorder());
-
         m_drawingPanel.addMouseListener(new MouseListener() {
             @Override
             public void mouseClicked(MouseEvent e) {
@@ -63,10 +70,40 @@ public class Window extends JFrame {
             }
         });
 
+        // Define sub-components
+        m_robot = new Robot(20, 20);
+        m_start = new JButton("Start");
+        m_start.addMouseListener(new MouseListener() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                startAnimation();
+            }
+
+            @Override
+            public void mousePressed(MouseEvent e) {
+
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+
+            }
+
+            @Override
+            public void mouseEntered(MouseEvent e) {
+
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+
+            }
+        });
+
+        m_configPanel.add(m_start);
+        m_drawingPanel.add(m_robot);
         add(m_drawingPanel, BorderLayout.CENTER);
         add(m_configPanel, BorderLayout.NORTH);
-
-
 
         setVisible(true);
     }
@@ -78,6 +115,18 @@ public class Window extends JFrame {
             }
         }
         drawBezierCurve(0.1, m_controlPoints.size());
+
+        if(m_animationRunning == true) {
+            if(System.currentTimeMillis() - m_animationTime >= m_period) {
+                m_animationRunning = false;
+                return;
+            }
+
+            double t = (double) (System.currentTimeMillis() - m_animationTime) / m_period;
+            System.out.println(t);
+            m_robot.setLocation(bezierPoint(t, m_controlPoints));
+        }
+
         repaint();
     }
 
@@ -86,34 +135,18 @@ public class Window extends JFrame {
         m_drawingPanel.add(p);
     }
 
-    public void drawLinearCurve() {
-        double step = 0.01;
-        ArrayList<Point> points = new ArrayList<>();
-
-        for(double t = 0; t < 1; t+= step) {
-            double xDraw = (1 - t) * m_controlPoints.get(0).getX() + t * m_controlPoints.get(1).getX();
-            double yDraw = (1 - t) * m_controlPoints.get(0).getY() + t * m_controlPoints.get(1).getY();
-            points.add(new Point((int) xDraw, (int) yDraw));
+    public Point bezierPoint(double t, ArrayList<ControlPoint> path) {
+        int numPoints = path.size();
+        int degree = numPoints - 1;
+        double xValue = 0;
+        double yValue = 0;
+        for (int term = 1; term <= numPoints; term++) {
+            xValue += binomialCoefficient(degree, term) * Math.pow(1 - t, degree - term + 1)
+                    * Math.pow(t, term - 1) * m_controlPoints.get(term - 1).getX();
+            yValue += binomialCoefficient(degree, term) * Math.pow(1 - t, degree - term + 1)
+                    * Math.pow(t, term - 1) * m_controlPoints.get(term - 1).getY();
         }
-
-        for(int i = 0; i < points.size() - 1; i++) {
-            m_drawingPanel.getGraphics().drawLine((int) points.get(i).getX(), (int) points.get(i).getY(), (int) points.get(i + 1).getX(), (int) points.get(i + 1).getY());
-        }
-    }
-
-    public void drawQuadraticCurve() {
-        double step = 0.05;
-        ArrayList<Point> points = new ArrayList<>();
-
-        for(double t = 0; t < 1; t+= step) {
-            double xDraw = binomialCoefficient(3, 1) * Math.pow((1 - t), 2) * m_controlPoints.get(0).getX() + binomialCoefficient (3, 2) * (1-t) * t * m_controlPoints.get(1).getX() + binomialCoefficient(3, 3) * Math.pow(t, 2) * m_controlPoints.get(2).getX();
-            double yDraw = binomialCoefficient(3, 1) * Math.pow((1 - t), 2) * m_controlPoints.get(0).getY() + binomialCoefficient (3, 2) * (1-t) * t * m_controlPoints.get(1).getY() + binomialCoefficient(3, 3) * Math.pow(t, 2) * m_controlPoints.get(2).getY();
-            points.add(new Point((int) xDraw, (int) yDraw));
-        }
-
-        for(int i = 0; i < points.size() - 1; i++) {
-            m_drawingPanel.getGraphics().drawLine((int) points.get(i).getX(), (int) points.get(i).getY(), (int) points.get(i + 1).getX(), (int) points.get(i + 1).getY());
-        }
+        return new Point((int) xValue, (int) yValue);
     }
 
     public void drawBezierCurve(double stepValue, int numPoints) {
@@ -138,6 +171,12 @@ public class Window extends JFrame {
 
     public double binomialCoefficient(int degree, int term) {
         return pascalsTriangle[degree][term - 1];
+    }
+
+    public void startAnimation() {
+        m_animationTime = System.currentTimeMillis();
+        m_robot.setLocation(m_controlPoints.getFirst().getX(), m_controlPoints.getFirst().getY());
+        m_animationRunning = true;
     }
 
 }
